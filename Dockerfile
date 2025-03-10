@@ -12,11 +12,11 @@ RUN mvn dependency:go-offline
 # 4️⃣ Baaki code copy karna
 COPY . .
 
-# 5️⃣ Maven build with debug
-RUN mvn clean package -DskipTests && echo "Build successful" || (echo "Build failed"; exit 1)
+# 5️⃣ Build command
+RUN mvn clean package -DskipTests || (echo "BUILD FAILED"; exit 1)
 
-# 6️⃣ JAR file ka naam print kar
-RUN ls -lh target/
+# 6️⃣ JAR file ka naam print kar (Debugging step)
+RUN echo "Checking target folder..." && ls -lh target/
 
-# 7️⃣ Backend start
-CMD ["java", "-jar", "$(ls target/*.jar | head -n 1)"]
+# 7️⃣ Backend start karne ka proper tareeka
+CMD ["java", "-jar", "target/job-application-tracker-0.0.1-SNAPSHOT.jar"]
