@@ -1,25 +1,22 @@
-# 1️⃣ Java 17 ka base image use karo
+# 1️⃣ Java 17 base image
 FROM openjdk:17-jdk-slim
 
-# 2️⃣ Working directory set karo
+# 2️⃣ Working directory
 WORKDIR /app
 
-# 3️⃣ POM.xml aur source code copy karo
+# 3️⃣ POM.xml copy aur Maven install
 COPY pom.xml .
-COPY src/ src/
-
-# 4️⃣ Maven install aur dependencies download karo
 RUN apt-get update && apt-get install -y maven
 RUN mvn dependency:go-offline
 
-# 5️⃣ Baaki files copy karo
+# 4️⃣ Baaki code copy karna
 COPY . .
 
-# 6️⃣ Build command run karo & logs dikhane ka system lagao
-RUN mvn clean package -DskipTests || (cat target/surefire-reports/*.txt && false)
+# 5️⃣ Maven build with debug
+RUN mvn clean package -DskipTests && echo "Build successful" || (echo "Build failed"; exit 1)
 
-# 7️⃣ Check karo ki JAR file exist karti hai
+# 6️⃣ JAR file ka naam print kar
 RUN ls -lh target/
 
-# 8️⃣ Backend run karo (Fixed CMD command)
-CMD ["java", "-jar", "target/*.jar"]
+# 7️⃣ Backend start
+CMD ["java", "-jar", "$(ls target/*.jar | head -n 1)"]
