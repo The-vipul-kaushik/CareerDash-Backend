@@ -55,7 +55,9 @@ public class SecurityConfig {
 	public CorsConfigurationSource corsConfigurationSource() {
 		CorsConfiguration configuration = new CorsConfiguration();
 		configuration.addAllowedOrigin("http://localhost:5173");
-		configuration.addAllowedOrigin("https://careerdash-backend.onrender.com");
+		configuration.addAllowedOrigin("https://career-dash.vercel.app");
+		configuration.addAllowedOrigin("https://career-dash-vipul-kaushiks-projects.vercel.app");
+		configuration.addAllowedOrigin("https://career-dash-git-main-vipul-kaushiks-projects.vercel.app");
 		configuration.addAllowedMethod("*");
 		configuration.addAllowedHeader("*");
 		configuration.setAllowCredentials(true);
