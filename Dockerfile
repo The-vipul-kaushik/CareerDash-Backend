@@ -1,5 +1,5 @@
 # 1️⃣ Java 17 base image
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jdk-focal
 
 # 2️⃣ Working directory
 WORKDIR /app
