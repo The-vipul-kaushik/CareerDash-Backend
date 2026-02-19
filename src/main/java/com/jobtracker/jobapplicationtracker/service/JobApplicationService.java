@@ -1,20 +1,27 @@
 package com.jobtracker.jobapplicationtracker.service;
 
-import java.util.List;
-
+import com.jobtracker.jobapplicationtracker.dto.JobApplicationDTO;
 import com.jobtracker.jobapplicationtracker.entity.JobApplication;
 
+import java.util.List;
+
 public interface JobApplicationService {
-	List<JobApplication> getAllApplicationsByUser(Long userId);
 
-	JobApplication saveApplication(JobApplication jobApplication);
+    // Get all applications for a user
+    List<JobApplicationDTO> getApplicationsForUser(String username);
 
-	void deleteApplication(Long id);
+    // Get a single application for a user
+    JobApplicationDTO getApplicationForUser(Long id, String username);
 
-	JobApplication updateApplication(Long id, JobApplication updatedApplication);
+    // Create new application
+    JobApplicationDTO createApplication(JobApplication jobApplication, String username);
 
-	List<JobApplication> filterJobApplications(String company, String role, String status);
+    // Update application
+    JobApplicationDTO updateApplication(Long id, JobApplication updatedApplication, String username);
 
-	JobApplication getApplicationById(Long id);
+    // Delete application
+    void deleteApplication(Long id, String username);
 
+    // Filter applications (scoped to user)
+    List<JobApplicationDTO> filterJobApplications(String company, String role, String status, String username);
 }

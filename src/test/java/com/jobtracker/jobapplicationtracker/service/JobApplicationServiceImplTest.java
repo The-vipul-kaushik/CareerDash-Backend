@@ -1,118 +1,155 @@
 package com.jobtracker.jobapplicationtracker.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import java.time.LocalDate;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
-
+import com.jobtracker.jobapplicationtracker.dto.JobApplicationDTO;
+import com.jobtracker.jobapplicationtracker.entity.JobApplication;
+import com.jobtracker.jobapplicationtracker.entity.User;
+import com.jobtracker.jobapplicationtracker.repository.JobApplicationRepository;
+import com.jobtracker.jobapplicationtracker.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import com.jobtracker.jobapplicationtracker.entity.JobApplication;
-import com.jobtracker.jobapplicationtracker.repository.JobApplicationRepository;
+import java.time.LocalDate;
+import java.util.List;
+import java.util.Optional;
 
-public class JobApplicationServiceImplTest {
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
-	@Mock
-	private JobApplicationRepository jobApplicationRepository;
+class JobApplicationServiceImplTest {
 
-	@InjectMocks
-	private JobApplicationServiceImpl jobApplicationService;
+    @Mock
+    private JobApplicationRepository jobApplicationRepository;
 
-	private JobApplication jobApplication;
+    @Mock
+    private UserRepository userRepository;
 
-	@BeforeEach
-	public void setUp() {
-		MockitoAnnotations.openMocks(this); // Initialize mocks
-		jobApplication = new JobApplication();
-		jobApplication.setId(1L);
-		jobApplication.setCompany("Company A");
-		jobApplication.setRole("Developer");
-		jobApplication.setApplicationDate(LocalDate.of(2025, 1, 1));
-		jobApplication.setStatus(JobApplication.ApplicationStatus.PENDING);
-		jobApplication.setNotes("Notes");
-	}
+    @InjectMocks
+    private JobApplicationServiceImpl jobApplicationService;
 
-	@Test
-	public void testGetAllApplicationsByUser() {
-		Long userId = 1L;
-		when(jobApplicationRepository.findByUserId(userId)).thenReturn(Arrays.asList(jobApplication));
+    private User user;
 
-		List<JobApplication> applications = jobApplicationService.getAllApplicationsByUser(userId);
+    @BeforeEach
+    void setUp() {
+        MockitoAnnotations.openMocks(this);
+        user = new User();
+        user.setId(1L);
+        user.setUsername("vipul");
+    }
 
-		assertNotNull(applications);
-		assertEquals(1, applications.size());
-		assertEquals("Company A", applications.get(0).getCompany());
-	}
+    @Test
+    void testCreateApplicationDefaultsToApplied() {
+        JobApplication app = new JobApplication();
+        app.setCompany("Accenture");
 
-	@Test
-	public void testSaveApplication() {
-		when(jobApplicationRepository.save(jobApplication)).thenReturn(jobApplication);
+        when(userRepository.findByUsername("vipul")).thenReturn(Optional.of(user));
+        when(jobApplicationRepository.save(any(JobApplication.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-		JobApplication savedApplication = jobApplicationService.saveApplication(jobApplication);
+        JobApplicationDTO result = jobApplicationService.createApplication(app, "vipul");
 
-		assertNotNull(savedApplication);
-		assertEquals("Company A", savedApplication.getCompany());
-		verify(jobApplicationRepository, times(1)).save(jobApplication);
-	}
+        assertEquals("APPLIED", result.getStatus());
+        assertEquals("Accenture", result.getCompany());
+    }
 
-	@Test
-	public void testDeleteApplication() {
-		Long applicationId = 1L;
-		doNothing().when(jobApplicationRepository).deleteById(applicationId);
+    @Test
+    void testGetApplicationForUserSuccess() {
+        JobApplication app = new JobApplication();
+        app.setId(1L);
+        app.setCompany("Accenture");
+        app.setUser(user);
+        app.setStatus(JobApplication.ApplicationStatus.APPLIED);
 
-		jobApplicationService.deleteApplication(applicationId);
+        when(userRepository.findByUsername("vipul")).thenReturn(Optional.of(user));
+        when(jobApplicationRepository.findById(1L)).thenReturn(Optional.of(app));
 
-		verify(jobApplicationRepository, times(1)).deleteById(applicationId);
-	}
+        JobApplicationDTO result = jobApplicationService.getApplicationForUser(1L, "vipul");
 
-	@Test
-	public void testUpdateApplication() {
-		Long applicationId = 1L;
-		JobApplication updatedApplication = new JobApplication();
-		updatedApplication.setId(1L);
-		updatedApplication.setCompany("Company B");
-		updatedApplication.setRole("Tester");
-		updatedApplication.setNotes("Updated Notes");
+        assertEquals("Accenture", result.getCompany());
+        assertEquals("APPLIED", result.getStatus());
+    }
 
-		when(jobApplicationRepository.findById(applicationId)).thenReturn(Optional.of(jobApplication));
-		when(jobApplicationRepository.save(any(JobApplication.class))).thenReturn(updatedApplication);
+    @Test
+    void testGetApplicationForUserForbidden() {
+        User otherUser = new User();
+        otherUser.setId(2L);
+        otherUser.setUsername("other");
 
-		JobApplication result = jobApplicationService.updateApplication(applicationId, updatedApplication);
+        JobApplication app = new JobApplication();
+        app.setId(1L);
+        app.setCompany("Accenture");
+        app.setUser(otherUser);
 
-		assertNotNull(result);
-		assertEquals("Company B", result.getCompany());
-		assertEquals("Tester", result.getRole());
-		assertEquals("Updated Notes", result.getNotes());
-		verify(jobApplicationRepository, times(1)).findById(applicationId);
-		verify(jobApplicationRepository, times(1)).save(any(JobApplication.class));
-	}
+        when(userRepository.findByUsername("vipul")).thenReturn(Optional.of(user));
+        when(jobApplicationRepository.findById(1L)).thenReturn(Optional.of(app));
 
-	@Test
-	public void testFilterJobApplications() {
-		String company = "Company A";
-		String role = "Developer";
-		String status = "PENDING";
+        assertThrows(SecurityException.class, () -> jobApplicationService.getApplicationForUser(1L, "vipul"));
+    }
 
-		when(jobApplicationRepository.filterJobApplications(company, role, JobApplication.ApplicationStatus.PENDING))
-				.thenReturn(Arrays.asList(jobApplication));
+    @Test
+    void testUpdateApplicationSuccess() {
+        JobApplication existingApp = new JobApplication();
+        existingApp.setId(1L);
+        existingApp.setCompany("Accenture");
+        existingApp.setUser(user);
 
-		List<JobApplication> applications = jobApplicationService.filterJobApplications(company, role, status);
+        JobApplication updatedApp = new JobApplication();
+        updatedApp.setCompany("Infosys");
+        updatedApp.setRole("Backend Engineer");
+        updatedApp.setApplicationDate(LocalDate.now());
+        updatedApp.setStatus(JobApplication.ApplicationStatus.INTERVIEWING);
+        updatedApp.setNotes("Technical round");
 
-		assertNotNull(applications);
-		assertEquals(1, applications.size());
-		assertEquals("Company A", applications.get(0).getCompany());
-		assertEquals(JobApplication.ApplicationStatus.PENDING, applications.get(0).getStatus());
-	}
+        when(jobApplicationRepository.findById(1L)).thenReturn(Optional.of(existingApp));
+        when(jobApplicationRepository.save(any(JobApplication.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        JobApplicationDTO result = jobApplicationService.updateApplication(1L, updatedApp, "vipul");
+
+        assertEquals("Infosys", result.getCompany());
+        assertEquals("Backend Engineer", result.getRole());
+        assertEquals("INTERVIEWING", result.getStatus());
+    }
+
+    @Test
+    void testDeleteApplicationSuccess() {
+        JobApplication existingApp = new JobApplication();
+        existingApp.setId(1L);
+        existingApp.setCompany("Accenture");
+        existingApp.setUser(user);
+
+        when(jobApplicationRepository.findById(1L)).thenReturn(Optional.of(existingApp));
+
+        jobApplicationService.deleteApplication(1L, "vipul");
+
+        verify(jobApplicationRepository, times(1)).delete(existingApp);
+    }
+
+    @Test
+    void testFilterJobApplicationsValidStatus() {
+        JobApplication app = new JobApplication();
+        app.setId(1L);
+        app.setCompany("Accenture");
+        app.setRole("Java Developer");
+        app.setStatus(JobApplication.ApplicationStatus.APPLIED);
+        app.setUser(user);
+
+        when(userRepository.findByUsername("vipul")).thenReturn(Optional.of(user));
+        when(jobApplicationRepository.filterJobApplications(eq(1L), eq("Accenture"), eq("Java Developer"), eq(JobApplication.ApplicationStatus.APPLIED)))
+                .thenReturn(List.of(app));
+
+        List<JobApplicationDTO> results = jobApplicationService.filterJobApplications("Accenture", "Java Developer", "APPLIED", "vipul");
+
+        assertEquals(1, results.size());
+        assertEquals("Accenture", results.get(0).getCompany());
+    }
+
+    @Test
+    void testFilterJobApplicationsInvalidStatus() {
+        when(userRepository.findByUsername("vipul")).thenReturn(Optional.of(user));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> jobApplicationService.filterJobApplications("Accenture", "Java Developer", "INVALID", "vipul"));
+    }
 }
