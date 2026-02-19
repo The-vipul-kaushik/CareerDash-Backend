@@ -7,82 +7,118 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.jobtracker.jobapplicationtracker.dto.JobApplicationDTO;
+import com.jobtracker.jobapplicationtracker.dto.JobApplicationMapper;
 import com.jobtracker.jobapplicationtracker.entity.JobApplication;
+import com.jobtracker.jobapplicationtracker.entity.User;
 import com.jobtracker.jobapplicationtracker.repository.JobApplicationRepository;
+import com.jobtracker.jobapplicationtracker.repository.UserRepository;
 
 @Service
 public class JobApplicationServiceImpl implements JobApplicationService {
 
-	private static final Logger logger = LoggerFactory.getLogger(JobApplicationServiceImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(JobApplicationServiceImpl.class);
 
-	private final JobApplicationRepository jobApplicationRepository;
+    private final JobApplicationRepository jobApplicationRepository;
+    private final UserRepository userRepository;
 
-	@Autowired
-	public JobApplicationServiceImpl(JobApplicationRepository jobApplicationRepository) {
-		this.jobApplicationRepository = jobApplicationRepository;
-	}
+    @Autowired
+    public JobApplicationServiceImpl(JobApplicationRepository jobApplicationRepository,
+                                     UserRepository userRepository) {
+        this.jobApplicationRepository = jobApplicationRepository;
+        this.userRepository = userRepository;
+    }
 
-	@Override
-	public List<JobApplication> getAllApplicationsByUser(Long userId) {
-		logger.info("Fetching all job applications for user with ID: {}", userId);
-		List<JobApplication> applications = jobApplicationRepository.findByUserId(userId);
-		logger.info("Found {} applications for user with ID: {}", applications.size(), userId);
-		return applications;
-	}
+    @Override
+    public List<JobApplicationDTO> getApplicationsForUser(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+        return jobApplicationRepository.findByUserId(user.getId())
+                .stream()
+                .map(JobApplicationMapper::toDTO)
+                .toList();
+    }
 
-	@Override
-	public JobApplication getApplicationById(Long id) {
-		logger.info("Fetching job application with ID: {}", id);
-		return jobApplicationRepository.findById(id)
-				.orElseThrow(() -> new RuntimeException("Application not found with ID: " + id));
-	}
+    @Override
+    public JobApplicationDTO getApplicationForUser(Long id, String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+        JobApplication app = jobApplicationRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Application not found with ID: " + id));
 
-	@Override
-	public JobApplication saveApplication(JobApplication jobApplication) {
-		logger.info("Saving job application for company: {}", jobApplication.getCompany());
-		logger.info(">>>", jobApplication.getStatus());
-		JobApplication savedApplication = jobApplicationRepository.save(jobApplication);
-		logger.info("Job application saved successfully with ID: {}", savedApplication.getId());
-		return savedApplication;
-	}
+        if (!app.getUser().getId().equals(user.getId())) {
+            throw new SecurityException("Forbidden: You cannot access this application");
+        }
+        return JobApplicationMapper.toDTO(app);
+    }
 
-	@Override
-	public void deleteApplication(Long id) {
-		logger.info("Attempting to delete job application with ID: {}", id);
-		jobApplicationRepository.deleteById(id);
-		logger.info("Job application with ID: {} deleted successfully", id);
-	}
+    @Override
+    public JobApplicationDTO createApplication(JobApplication jobApplication, String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
 
-	@Override
-	public JobApplication updateApplication(Long id, JobApplication updatedApplication) {
-		logger.info("Updating job application with ID: {}", id);
-		JobApplication existingApplication = jobApplicationRepository.findById(id)
-				.orElseThrow(() -> new RuntimeException("Application not found"));
+        jobApplication.setUser(user);
 
-		existingApplication.setCompany(updatedApplication.getCompany());
-		existingApplication.setRole(updatedApplication.getRole());
-		existingApplication.setApplicationDate(updatedApplication.getApplicationDate());
-		existingApplication.setStatus(updatedApplication.getStatus());
-		existingApplication.setNotes(updatedApplication.getNotes());
+        if (jobApplication.getStatus() == null) {
+            jobApplication.setStatus(JobApplication.ApplicationStatus.APPLIED);
+        }
 
-		JobApplication updated = jobApplicationRepository.save(existingApplication);
-		logger.info("Job application with ID: {} updated successfully", updated.getId());
-		return updated;
-	}
+        JobApplication saved = jobApplicationRepository.save(jobApplication);
+        return JobApplicationMapper.toDTO(saved);
+    }
 
-	@Override
-	public List<JobApplication> filterJobApplications(String company, String role, String status) {
-		JobApplication.ApplicationStatus statusEnum = null;
-		if (status != null && !status.isEmpty()) {
-			try {
-				statusEnum = JobApplication.ApplicationStatus.valueOf(status.toUpperCase());
-			} catch (IllegalArgumentException e) {
-				throw new RuntimeException("Invalid status value: " + status);
-			}
-		}
+    @Override
+    public JobApplicationDTO updateApplication(Long id, JobApplication updatedApplication, String username) {
+        JobApplication existingApp = jobApplicationRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Application not found"));
 
-		return jobApplicationRepository.filterJobApplications(
-				(company != null && !company.trim().isEmpty()) ? company : null,
-				(role != null && !role.trim().isEmpty()) ? role : null, statusEnum);
-	}
+        if (!existingApp.getUser().getUsername().equals(username)) {
+            throw new SecurityException("Forbidden: You cannot update this application");
+        }
+
+        existingApp.setCompany(updatedApplication.getCompany());
+        existingApp.setRole(updatedApplication.getRole());
+        existingApp.setApplicationDate(updatedApplication.getApplicationDate());
+        existingApp.setStatus(updatedApplication.getStatus());
+        existingApp.setNotes(updatedApplication.getNotes());
+
+        JobApplication updated = jobApplicationRepository.save(existingApp);
+        return JobApplicationMapper.toDTO(updated);
+    }
+
+    @Override
+    public void deleteApplication(Long id, String username) {
+        JobApplication existingApp = jobApplicationRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Application not found"));
+
+        if (!existingApp.getUser().getUsername().equals(username)) {
+            throw new SecurityException("Forbidden: You cannot delete this application");
+        }
+
+        jobApplicationRepository.delete(existingApp);
+    }
+
+    @Override
+    public List<JobApplicationDTO> filterJobApplications(String company, String role, String status, String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+
+        JobApplication.ApplicationStatus statusEnum = null;
+        if (status != null && !status.isEmpty()) {
+            try {
+                statusEnum = JobApplication.ApplicationStatus.valueOf(status.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Invalid status value: " + status);
+            }
+        }
+
+        return jobApplicationRepository.filterJobApplications(
+                user.getId(),
+                (company != null && !company.trim().isEmpty()) ? company : null,
+                (role != null && !role.trim().isEmpty()) ? role : null,
+                statusEnum
+        ).stream()
+         .map(JobApplicationMapper::toDTO)
+         .toList();
+    }
 }

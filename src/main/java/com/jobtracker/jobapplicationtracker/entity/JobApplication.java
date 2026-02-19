@@ -6,11 +6,13 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -23,6 +25,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Table(name = "job_application")
 public class JobApplication {
 
 	@Id
@@ -41,16 +44,16 @@ public class JobApplication {
 
 	@Enumerated(EnumType.STRING)
 	@Column(length = 20)
-	private ApplicationStatus status; // Enum for status
+	private ApplicationStatus status = ApplicationStatus.APPLIED; // Enum for status
 
 	@Column(length = 1000)
 	private String notes; // Additional notes about the application
 
-	@ManyToOne
+	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id", nullable = false)
 	private User user; // Links the application to a specific user
 
 	public enum ApplicationStatus {
-		INTERVIEWING, REJECTED, OFFERED, PENDING
+		APPLIED, INTERVIEWING, REJECTED, OFFERED, PENDING
 	}
 }
