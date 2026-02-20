@@ -12,7 +12,7 @@ import com.jobtracker.jobapplicationtracker.dto.JobApplicationDTO;
 import com.jobtracker.jobapplicationtracker.entity.JobApplication;
 import com.jobtracker.jobapplicationtracker.service.JobApplicationService;
 
-@CrossOrigin(origins = "https://career-dash.vercel.app")
+//@CrossOrigin(origins = "https://career-dash.vercel.app")
 @RestController
 @RequestMapping("/api/job-applications")
 public class JobApplicationController {

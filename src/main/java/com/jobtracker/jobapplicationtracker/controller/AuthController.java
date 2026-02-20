@@ -13,7 +13,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
-@CrossOrigin(origins = "https://career-dash.vercel.app")
+//@CrossOrigin(origins = "https://career-dash.vercel.app")
 @RestController
 @RequestMapping("api/auth")
 public class AuthController {
