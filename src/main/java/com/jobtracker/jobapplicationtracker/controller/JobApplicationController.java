@@ -14,7 +14,7 @@ import com.jobtracker.jobapplicationtracker.service.JobApplicationService;
 
 @CrossOrigin(origins = "${cors.allowed-origin}")
 @RestController
-@RequestMapping("/api/applications")
+@RequestMapping("/api/job-applications")
 public class JobApplicationController {
 
     @Autowired

@@ -14,7 +14,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/auth")
+@RequestMapping("api/auth")
 public class AuthController {
 
     @Autowired
@@ -31,7 +31,7 @@ public class AuthController {
 
 
     // Signup endpoint
-    @PostMapping("/signup")
+    @PostMapping("/register")
     public ResponseEntity<User> signup(@RequestBody User user) {
         User savedUser = userService.registerUser(user);
         return ResponseEntity.ok(savedUser);
